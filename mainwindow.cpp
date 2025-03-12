@@ -24,28 +24,49 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
 
-    // Create the widgets
-    m_display       = new QLineEdit(this);
-    m_clockButton   = new QPushButton("Clock", this);
-    m_powerButton   = new QPushButton("Power", this);
-    m_modeButton    = new QPushButton("Mode", this);
-    m_defrostButton = new QPushButton("Defrost", this);
-    m_dial          = new QDial(this);
-    m_stopButton    = new QPushButton("Stop", this);
-    m_startButton   = new QPushButton("Start", this);
+    // Create the widgets.
+        m_display       = new QLineEdit(this);
+        m_clockButton   = new QPushButton("Clock", this);
+        m_powerButton   = new QPushButton("Power", this);
+        m_modeButton    = new QPushButton("Mode", this);
+        m_defrostButton = new QPushButton("Defrost", this);
+        m_dial          = new QDial(this);
+        m_stopButton    = new QPushButton("Stop", this);
+        m_startButton   = new QPushButton("Start", this);
 
-    m_display->setReadOnly(true);
-    // When idle, display the current clock time.
-    m_display->setText(m_clockTime.toString("hh:mm"));
-    m_display->setAlignment(Qt::AlignCenter);
+        // Style the display.
+        m_display->setReadOnly(true);
+        m_display->setAlignment(Qt::AlignCenter);
+        m_display->setText(m_clockTime.toString("hh:mm"));
+        m_display->setStyleSheet("font-size: 28px; font-weight: bold; color: #333;");
 
-    // Create layout
-    QVBoxLayout *mainLayout = new QVBoxLayout;
-    ui->centralwidget->setLayout(mainLayout);
-    mainLayout->addWidget(m_display);
+        // Define a common style for the buttons.
+        QString btnStyle = "font-size: 20px; padding: 10px 20px; "
+                           "background-color: #f0f0f0; border: 2px solid #555; border-radius: 8px;";
+        m_clockButton->setStyleSheet(btnStyle);
+        m_powerButton->setStyleSheet(btnStyle);
+        m_modeButton->setStyleSheet(btnStyle);
+        m_defrostButton->setStyleSheet(btnStyle);
+        m_startButton->setStyleSheet(btnStyle);
+        m_stopButton->setStyleSheet(btnStyle);
 
-    QGridLayout *gridLayout = new QGridLayout;
-    mainLayout->addLayout(gridLayout);
+        // Optionally, set a style for the dial.
+        m_dial->setStyleSheet("QDial { background-color: #ddd; }");
+
+        // Create and set the layout for the central widget.
+        QVBoxLayout *mainLayout = new QVBoxLayout;
+        ui->centralwidget->setLayout(mainLayout);
+        mainLayout->setContentsMargins(10, 10, 10, 10);
+        mainLayout->setSpacing(10);
+
+        // Add the display at the top.
+        mainLayout->addWidget(m_display);
+
+        // Create a grid layout for buttons and dial.
+        QGridLayout *gridLayout = new QGridLayout;
+        gridLayout->setHorizontalSpacing(10);
+        gridLayout->setVerticalSpacing(10);
+        mainLayout->addLayout(gridLayout);
     gridLayout->addWidget(m_clockButton, 0, 0);
     gridLayout->addWidget(m_powerButton, 0, 1);
     gridLayout->addWidget(m_modeButton,    1, 0);
@@ -58,6 +79,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(m_dial, &QDial::valueChanged, this, [this](int value) {
         switch(m_currentSetting) {
             case ClockHours:
+                m_tempHour = value;  // Update the temporary hour.
                 m_display->setText("Set Hour: " + QString::number(value));
                 break;
             case ClockMinutes:
@@ -229,7 +251,12 @@ void MainWindow::setupStateMachine()
     QState *cookingState = new QState();
     connect(cookingState, &QState::entered, this, [this]() {
         m_currentSetting = None;
-        m_remainingTime = m_dial->value() * 1000; // dial sets duration in seconds.
+        if (m_dial->isEnabled()) {
+                 m_remainingTime = m_dial->value() * 1000;
+            }
+        else {
+                 m_remainingTime = 60000; // default to 60 seconds.
+            }
         m_display->setText("Cooking: " + QString::number(m_remainingTime/1000) + " sec remaining");
         m_dial->setEnabled(false);
         m_stopButton->setEnabled(true);
