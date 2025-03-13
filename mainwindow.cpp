@@ -18,13 +18,13 @@ MainWindow::MainWindow(QWidget *parent)
     , m_cookingTimer(new QTimer(this))
     , m_idleClockTimer(new QTimer(this))
     , m_remainingTime(0)
-    , m_clockTime(QTime::currentTime())  // initialize with current system time (or a fixed default)
+    , m_clockTime(QTime::currentTime())
     , m_tempHour(0)
     , m_currentSetting(None)
 {
     ui->setupUi(this);
 
-    // Create the widgets.
+    //Widgets
         m_display       = new QLineEdit(this);
         m_clockButton   = new QPushButton("Clock", this);
         m_powerButton   = new QPushButton("Power", this);
@@ -34,13 +34,13 @@ MainWindow::MainWindow(QWidget *parent)
         m_stopButton    = new QPushButton("Stop", this);
         m_startButton   = new QPushButton("Start", this);
 
-        // Style the display.
+        //Display
         m_display->setReadOnly(true);
         m_display->setAlignment(Qt::AlignCenter);
         m_display->setText(m_clockTime.toString("hh:mm"));
         m_display->setStyleSheet("font-size: 28px; font-weight: bold; color: #333;");
 
-        // Define a common style for the buttons.
+        // buttons style
         QString btnStyle = "font-size: 20px; padding: 10px 20px; "
                            "background-color: #f0f0f0; border: 2px solid #555; border-radius: 8px;";
         m_clockButton->setStyleSheet(btnStyle);
@@ -50,19 +50,15 @@ MainWindow::MainWindow(QWidget *parent)
         m_startButton->setStyleSheet(btnStyle);
         m_stopButton->setStyleSheet(btnStyle);
 
-        // Optionally, set a style for the dial.
+        //dial style
         m_dial->setStyleSheet("QDial { background-color: #ddd; }");
 
-        // Create and set the layout for the central widget.
+        //central widget layout
         QVBoxLayout *mainLayout = new QVBoxLayout;
         ui->centralwidget->setLayout(mainLayout);
         mainLayout->setContentsMargins(10, 10, 10, 10);
         mainLayout->setSpacing(10);
-
-        // Add the display at the top.
         mainLayout->addWidget(m_display);
-
-        // Create a grid layout for buttons and dial.
         QGridLayout *gridLayout = new QGridLayout;
         gridLayout->setHorizontalSpacing(10);
         gridLayout->setVerticalSpacing(10);
@@ -75,11 +71,11 @@ MainWindow::MainWindow(QWidget *parent)
     gridLayout->addWidget(m_stopButton,  3, 0);
     gridLayout->addWidget(m_startButton, 3, 1);
 
-    // Connect the dial's valueChanged signal to update the display.
+    //dial signal valueChanged
     connect(m_dial, &QDial::valueChanged, this, [this](int value) {
         switch(m_currentSetting) {
             case ClockHours:
-                m_tempHour = value;  // Update the temporary hour.
+                m_tempHour = value;
                 m_display->setText("Set Hour: " + QString::number(value));
                 break;
             case ClockMinutes:
@@ -102,15 +98,14 @@ MainWindow::MainWindow(QWidget *parent)
         }
     });
 
-    // Setup the idle clock timer (updates every second)
+    //Idle clock timer
     m_idleClockTimer->setInterval(1000);
     connect(m_idleClockTimer, &QTimer::timeout, this, [this]() {
-        // Advance the clock by one second and update display.
+        // Advance the clock by one second
         m_clockTime = m_clockTime.addSecs(1);
         m_display->setText(m_clockTime.toString("hh:mm"));
     });
 
-    // Setup the state machine.
     setupStateMachine();
 }
 
@@ -121,39 +116,34 @@ MainWindow::~MainWindow()
 
 void MainWindow::setupStateMachine()
 {
-    // Setup cooking timer.
+    //cooking timer
     m_cookingTimer->setInterval(1000);
     m_cookingTimer->setSingleShot(false);
 
     QStateMachine *machine = new QStateMachine(this);
 
-    // ----- Idle State -----
+    //Idle State
     QState *idleState = new QState();
     connect(idleState, &QState::entered, this, [this]() {
-        // When idle, update display with current clock time.
         m_display->setText(m_clockTime.toString("hh:mm"));
         m_currentSetting = None;
-        // Enable all main buttons.
         m_clockButton->setEnabled(true);
         m_powerButton->setEnabled(true);
         m_modeButton->setEnabled(true);
         m_defrostButton->setEnabled(true);
         m_startButton->setEnabled(true);
         m_dial->setEnabled(false);
-        // Start the idle clock timer.
         m_idleClockTimer->start();
     });
-    // Stop the idle clock timer when leaving idle.
     connect(idleState, &QState::exited, this, [this]() {
         m_idleClockTimer->stop();
     });
 
-    // ----- Clock Sequence States -----
+    //Clock Sequence States
     QState *clockSetHours = new QState();
     connect(clockSetHours, &QState::entered, this, [this]() {
         m_currentSetting = ClockHours;
         m_dial->setRange(0, 23);
-        // Initialize dial with the current hour.
         m_dial->setValue(m_clockTime.hour());
         m_tempHour = m_clockTime.hour();
         m_dial->setEnabled(true);
@@ -168,29 +158,29 @@ void MainWindow::setupStateMachine()
     connect(clockSetMinutes, &QState::entered, this, [this]() {
         m_currentSetting = ClockMinutes;
         m_dial->setRange(0, 59);
-        // Initialize dial with the current minute.
         m_dial->setValue(m_clockTime.minute());
         m_dial->setEnabled(true);
         m_display->setText("Set Minute: " + QString::number(m_dial->value()));
         m_clockButton->setEnabled(true);
     });
-    // When leaving clockSetMinutes, update the clock time.
+    // update the clock time When leaving clockSetMinutes
     clockSetMinutes->addTransition(m_clockButton, SIGNAL(clicked()), idleState);
     QObject::connect(clockSetMinutes, &QState::exited, this, [this]() {
-        // Update m_clockTime with the temporary hour and the dial's minute value.
+        //Update m_clockTime
         m_clockTime = QTime(m_tempHour, m_dial->value(), 0);
     });
     clockSetHours->addTransition(m_clockButton, SIGNAL(clicked()), clockSetMinutes);
     clockSetHours->addTransition(m_stopButton, SIGNAL(clicked()), idleState);
     clockSetMinutes->addTransition(m_stopButton, SIGNAL(clicked()), idleState);
 
-    // ----- Power Sequence States -----
+    //Power Sequence State
     QState *setupSetPower = new QState();
     connect(setupSetPower, &QState::entered, this, [this]() {
         m_currentSetting = Power;
         m_dial->setRange(0, 100);
         m_dial->setEnabled(true);
-        m_dial->setValue(m_dial->value());  // use current dial value or preset if needed.
+        m_dial->setValue(m_dial->value());  //
+
         m_display->setText("Set Power: " + QString::number(m_dial->value()) + "%");
         m_powerButton->setEnabled(true);
         m_clockButton->setEnabled(false);
@@ -215,7 +205,7 @@ void MainWindow::setupStateMachine()
     setupSetDuration->addTransition(m_stopButton, SIGNAL(clicked()), idleState);
     setupSetDuration->addTransition(m_startButton, SIGNAL(clicked()), nullptr); // to be set to cooking
 
-    // ----- Mode Sequence States -----
+    //Mode Sequence State
     QState *setupSetMode = new QState();
     connect(setupSetMode, &QState::entered, this, [this]() {
         m_currentSetting = Mode;
@@ -231,7 +221,7 @@ void MainWindow::setupStateMachine()
     setupSetMode->addTransition(m_modeButton, SIGNAL(clicked()), setupSetDuration);
     setupSetMode->addTransition(m_stopButton, SIGNAL(clicked()), idleState);
 
-    // ----- Defrost Sequence State -----
+    // Defrost Sequence State
     QState *setupSetWeight = new QState();
     connect(setupSetWeight, &QState::entered, this, [this]() {
         m_currentSetting = Weight;
@@ -247,7 +237,7 @@ void MainWindow::setupStateMachine()
     setupSetWeight->addTransition(m_defrostButton, SIGNAL(clicked()), setupSetDuration); // to be set to cooking
     setupSetWeight->addTransition(m_stopButton, SIGNAL(clicked()), idleState);
 
-    // ----- Cooking State -----
+    // Cooking State
     QState *cookingState = new QState();
     connect(cookingState, &QState::entered, this, [this]() {
         m_currentSetting = None;
@@ -263,24 +253,20 @@ void MainWindow::setupStateMachine()
         m_startButton->setEnabled(true);
         m_cookingTimer->start();
     });
-    // When Stop is clicked, transition to idle.
     cookingState->addTransition(m_stopButton, SIGNAL(clicked()), idleState);
-    // Also, when cooking state is exited, stop the cooking timer so it doesn’t trigger extra events.
     connect(cookingState, &QState::exited, this, [this]() {
         m_cookingTimer->stop();
     });
 
-    // Timer update in Cooking.
     connect(m_cookingTimer, &QTimer::timeout, this, [this]() {
         m_remainingTime -= 1000;
         if(m_remainingTime <= 0) {
             m_cookingTimer->stop();
-            emit m_stopButton->clicked();  // simulate a Stop click
+            emit m_stopButton->clicked();
         } else {
             m_display->setText("Cooking: " + QString::number(m_remainingTime/1000) + " sec remaining");
         }
     });
-    // Clicking Start during cooking adds 60 sec.
     connect(m_startButton, &QPushButton::clicked, this, [this]() {
         if(m_cookingTimer->isActive()){
             m_remainingTime += 60000;
@@ -288,18 +274,17 @@ void MainWindow::setupStateMachine()
         }
     });
 
-    // ----- Transitions from Idle for starting sequences -----
+    // Transitions from Idle
     idleState->addTransition(m_clockButton, SIGNAL(clicked()), clockSetHours);
     idleState->addTransition(m_powerButton, SIGNAL(clicked()), setupSetPower);
     idleState->addTransition(m_modeButton, SIGNAL(clicked()), setupSetMode);
     idleState->addTransition(m_defrostButton, SIGNAL(clicked()), setupSetWeight);
     idleState->addTransition(m_startButton, SIGNAL(clicked()), cookingState);
 
-    // ----- Final transitions to Cooking State from setup states -----
+    // transitions from setup states to Cooking State
     setupSetDuration->addTransition(m_startButton, SIGNAL(clicked()), cookingState);
     setupSetWeight->addTransition(m_startButton, SIGNAL(clicked()), cookingState);
 
-    // Add all states.
     machine->addState(idleState);
     machine->addState(clockSetHours);
     machine->addState(clockSetMinutes);

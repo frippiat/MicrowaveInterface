@@ -26,7 +26,7 @@ private:
 
     Ui::MainWindow *ui;
 
-    // GUI elements for the microwave:
+    // GUI microwave:
     QLineEdit    *m_display;
     QPushButton  *m_clockButton;
     QPushButton  *m_powerButton;
@@ -36,16 +36,15 @@ private:
     QPushButton  *m_stopButton;
     QPushButton  *m_startButton;
 
-    // Additional members for the state machine:
     QTimer       *m_cookingTimer;
-    QTimer       *m_idleClockTimer;  // Timer for updating the clock when idle.
-    int           m_remainingTime;   // in milliseconds
+    QTimer       *m_idleClockTimer;  // for updating the clock when idle
+    int           m_remainingTime;   // in ms
 
     // For the clock time
-    QTime         m_clockTime;       // current clock time
-    int           m_tempHour;        // temporary hour storage when setting clock
+    QTime         m_clockTime;
+    int           m_tempHour;
 
-    // Enum to track what the dial is currently adjusting.
+
     enum SettingType {
         None,
         ClockHours,
